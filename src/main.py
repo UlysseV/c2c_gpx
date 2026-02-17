@@ -11,7 +11,7 @@ import gpxpy
 import gpxpy.gpx
 from typing import Any
 import json
-
+import os
 from pyproj import Transformer
 
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
@@ -19,9 +19,12 @@ transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
 base_url = "https://www.camptocamp.org/routes"
 search_url = "https://api.camptocamp.org/routes"
+
+# TODO: pass as a parameter
 params = {
     "act": "rock_climbing",
-    "bbox": "616096,5333945,627309,5346461",  # cap canaille
+    "bbox": "616096,5333945,627309,5346461",  # Cap Canaille
+    # "bbox": "600371,5336634,616327,5353833",  # Calanques
     "frat": "2,6b",
     "rrat": "2,6a",
     "qa": "draft,great",
@@ -51,48 +54,52 @@ route_keys = {
     "public_transportation_rating": "Transports publiques",
 }
 
+export_folder = "exports"
+
+def create_route_description(route: dict[str, Any], title: str, desc: dict[str, Any]) -> str:
+    route_id = route["document_id"]
+    title_prefix = desc.get("title_prefix", "N/A")
+    summary = desc.get("summary", "N/A")
+    metadata = [
+        f"{title_prefix} : {title}\n"
+        f"{base_url}/{route_id}\n"
+    ]
+    for k,n in route_keys.items():
+        v = route.get(k)
+        if not v:
+            continue
+        metadata.append(f"{n} : {v}")
+    metadata.append(f"Description : {summary}")
+    return "\n".join(metadata)
+
+def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
+    desc = route["locales"][0]  # take the first language available, TODO: select fr > en > fail !
+    title = desc.get("title", "N/A")
+    x, y = json.loads(route["geometry"]["geom"])["coordinates"]
+    lon, lat = transformer.transform(x, y)
+    wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
+    wp.description = create_route_description(route, title, desc)
+    # wp.comment = f""
+    return wp
+
 def download_routes() -> None:
     response = requests.get(search_url, params=params, headers=headers)
     response.raise_for_status()
     data: dict[str, Any] = response.json()
     print(f"fetched {data['total']} routes")
     routes = data['documents']
-    assert len(routes) == data['total']
+    # assert len(routes) == data['total']  # TODO: handle cases where len(routes) < data['total'] (pagination)
     
     gpx = gpxpy.gpx.GPX()
     
     for route in routes:
-        # if "fr" not in route["available_langs"]:
-        #     continue
-        # desc = [loc for loc in route["locales"] if loc["lang"] == "fr"][0]
-        desc = route["locales"][0]
-        
-        title = desc.get("title", "N/A")
-        title_prefix = desc.get("title_prefix", "N/A")
-        summary = desc.get("summary", "N/A")
-        route_id = route["document_id"]
-        metadata = [
-            f"{title_prefix} : {title}\n"
-            f"{base_url}/{route_id}\n"
-        ]
-        for k,n in route_keys.items():
-            v = route.get(k)
-            if not v:
-                continue
-            metadata.append(f"{n} : {v}")
-        metadata.append(f"Description : {summary}")
-        
-        x, y = json.loads(route["geometry"]["geom"])["coordinates"]
-        lon, lat = transformer.transform(x, y)
-        wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
-        wp.description = "\n".join(metadata)
-        # wp.comment = f""
+        wp = create_route_waypoint(route)
         gpx.waypoints.append(wp)
 
-    with open("voies_climbing.gpx", "w", encoding="utf-8") as f:
+    with open(os.path.join(export_folder, "voies_climbing.gpx"), "w", encoding="utf-8") as f:
         f.write(gpx.to_xml())
     
-    print(f"file created with {len(gpx.waypoints)} waypoints.")
+    print(f"file created with {len(gpx.waypoints)} waypoints")
 
 if __name__ == "__main__":
     download_routes()
