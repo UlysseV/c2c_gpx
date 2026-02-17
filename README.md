@@ -1,2 +1,3 @@
 # c2c_gpx
-export camptocamp data to a gpx file
+
+Export camptocamp search data to a gpx file intended for osmand or oruxmap.
