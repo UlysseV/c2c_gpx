@@ -101,6 +101,19 @@ def create_route_height(route: dict[str, Any]) -> str:
 
     return " / ".join(e)
 
+import re
+
+# TODO : convert links html
+def clean_bbcode(text: str) -> str:
+    if not text: return ""
+    # Supprime les liens C2C [[...|...]] pour ne garder que le texte
+    text = re.sub(r'\[\[.*?\|(.*?)\]\]', r'\1', text)
+    # Supprime les liens simples [[...]]
+    text = re.sub(r'\[\[(.*?)\]\]', r'\1', text)
+    # Supprime le gras/italique markdown
+    text = text.replace('**', '').replace('//', '')
+    return text
+
 def create_route_description(route: dict[str, Any], title: str, desc: dict[str, Any]) -> str:
     route_id = route["document_id"]
     title_prefix = desc.get("title_prefix", "N/A")
@@ -136,7 +149,7 @@ def create_route_description(route: dict[str, Any], title: str, desc: dict[str, 
     # - fetch individual route data for a comprehensive description (approach, pitches, ...)
   
     if summary is not None:
-        lines.append(f"<b>Description</b> : {html.escape(summary)}")
+        lines.append(f"<b>Description</b> : {html.escape(clean_bbcode(summary))}")
     return "<br/>".join(lines)
 
 def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
