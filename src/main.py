@@ -1,4 +1,11 @@
+import requests_cache
+from datetime import timedelta
 
+requests_cache.install_cache(
+    'c2c_cache', 
+    backend='sqlite', 
+    expire_after=timedelta(days=1)
+)
 import requests
 import gpxpy
 import gpxpy.gpx
@@ -74,7 +81,7 @@ def download_routes() -> None:
                 continue
             metadata.append(f"{n} : {v}")
         metadata.append(f"Description : {summary}")
-            
+        
         x, y = json.loads(route["geometry"]["geom"])["coordinates"]
         lon, lat = transformer.transform(x, y)
         wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
