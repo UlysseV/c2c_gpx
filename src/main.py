@@ -1,10 +1,11 @@
-import html
 import requests_cache
 from datetime import timedelta
+import time
 
 requests_cache.install_cache(
     "c2c_cache", backend="sqlite", expire_after=timedelta(days=1)
 )
+
 import requests
 import gpxpy
 import gpxpy.gpx
@@ -12,10 +13,15 @@ from typing import Any
 import json
 import os
 from pyproj import Transformer
+import re
+import tqdm
+import markdown
+
 
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
+# todo: enable base urls for outings, accidents, etc.
 base_url = "https://www.camptocamp.org/routes"
 search_url = "https://api.camptocamp.org/routes"
 
@@ -30,28 +36,30 @@ params = {
     "limit": 100,
 }
 
+delay = 0.5
+
 headers = {"User-Agent": "C2C-GPX-Exporter-User"}
 
-route_keys = {
-    # "elevation_min": "Altitude min",
-    # "elevation_max": "Altitude max",
-    # "height_diff_up": "Dénivelé positif",
-    # "height_diff_down": "Dénivelé négatif",
-    # "durations": "Durée",
-    # "calculated_duration": "Durée calculée",
-    "height_diff_difficulties": "Dénivelé des difficultés",
-    # "orientations": "Orientation",
-    # "global_rating": "Cotation globale",
-    # "engagement_rating": "Engagement",
-    # "risk_rating": "Risque",
-    # "equipment_rating": "Équipement",
-    # "exposition_rock_rating": "Exposition",
-    # "rock_free_rating": "Cotation libre",
-    # "rock_required_rating": "Cotation obligatoire",
-    # "aid_rating": "Cotation artificielle",
-    # "climbing_outdoor_type": "Type d'escalade",
-    # "public_transportation_rating": "Transports publiques",
-}
+# route_keys = {
+#     "elevation_min": "Altitude min",
+#     "elevation_max": "Altitude max",
+#     "height_diff_up": "Dénivelé positif",
+#     "height_diff_down": "Dénivelé négatif",
+#     "durations": "Durée",
+#     "calculated_duration": "Durée calculée",
+#     "height_diff_difficulties": "Dénivelé des difficultés",
+#     "orientations": "Orientation",
+#     "global_rating": "Cotation globale",
+#     "engagement_rating": "Engagement",
+#     "risk_rating": "Risque",
+#     "equipment_rating": "Équipement",
+#     "exposition_rock_rating": "Exposition",
+#     "rock_free_rating": "Cotation libre",
+#     "rock_required_rating": "Cotation obligatoire",
+#     "aid_rating": "Cotation artificielle",
+#     "climbing_outdoor_type": "Type d'escalade",
+#     "public_transportation_rating": "Transports publiques",
+# }
 
 export_folder = "exports"
 
@@ -100,98 +108,167 @@ def create_route_height(route: dict[str, Any]) -> str:
     if height_diff_down := route["height_diff_down"]:
         e.append(f"-{height_diff_down} m")
 
+    height_diff_difficulties = route["height_diff_difficulties"]
+
+    if height_diff_difficulties:
+        if not e:
+            return f"{height_diff_difficulties} m"
+        return " / ".join(e) + f" ({height_diff_difficulties} m)"
+
     return " / ".join(e)
 
 
-import re
+def increment_pitches(text):
+    count_l, count_r = 0, 0
 
+    def repl_l(m):
+        nonlocal count_l
+        count_l += 1
+        return f"<b>L{count_l}</b>"
 
-# TODO : convert links html
-def clean_bbcode(text: str) -> str:
-    if not text:
-        return ""
-    # Supprime les liens C2C [[...|...]] pour ne garder que le texte
-    text = re.sub(r"\[\[.*?\|(.*?)\]\]", r"\1", text)
-    # Supprime les liens simples [[...]]
-    text = re.sub(r"\[\[(.*?)\]\]", r"\1", text)
-    # Supprime le gras/italique markdown
-    text = text.replace("**", "").replace("//", "")
+    def repl_r(m):
+        nonlocal count_r
+        count_r += 1
+        return f"<b>R{count_r}</b>"
+
+    text = re.sub(r"L#", repl_l, text)
+    text = re.sub(r"R#", repl_r, text)
     return text
 
 
-def create_route_description(
-    route: dict[str, Any], title: str, desc: dict[str, Any]
-) -> str:
+def clean_and_html(text):
+    if not text:
+        text = ""
+    text = text.replace("\\n", "\n")
+
+    # replace C2C links with HTML ones
+    text = re.sub(
+        r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:\|(.*?))?\]\]",
+        lambda m: (
+            f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}">{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
+        ),
+        text,
+    )
+    
+    text = text.replace("|", "<td>")
+
+    text = increment_pitches(text)
+    html = markdown.markdown(text, extensions=["nl2br", "sane_lists", "tables"])
+    return html
+
+def get_locale(route, lang="fr") -> dict[str, Any] | None:
+    for loc in route["locales"]:
+        if loc["lang"] == lang:
+            return loc
+    return None
+
+def get_locales(route, langs=["fr", "en"]) -> dict[str, Any]:
+    for lang in langs:
+        if loc := get_locale(route, lang):
+            return loc
+    raise RuntimeError(f"route {route['document_id']} has no locale in {langs}")
+
+def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
     route_id = route["document_id"]
-    title_prefix = desc.get("title_prefix", "N/A")
-    summary = desc.get("summary", "N/A")
+    desc = get_locales(route)
+    title = desc["title"]
+    title_prefix = desc.get("title_prefix")
+    summary = desc.get("summary")
+    route_history = desc.get("route_history")
+    description = desc.get("description")
+    remarks = desc.get("remarks")
+    gear = desc.get("gear")
 
-    # Start with title and link
-    lines = [f'<a href="{base_url}/{route_id}">{html.escape(title)}</a>']
+    lines = [f'<p> <a href="{base_url}/{route_id}">{route_id}</a>']
 
-    if title_prefix is not None:
-        lines.append(f"<b>Secteur</b> : {html.escape(title_prefix)}")
+    if title_prefix:
+        lines.append(f"<b>Secteur</b> : {title_prefix}")
 
     if cotation := create_route_grade(route):
-        lines.append(f"<b>Cotations</b> : {html.escape(cotation)}")
+        lines.append(f"<b>Cotations</b> : {cotation}")
 
     if altitude := create_route_altitude(route):
-        lines.append(f"<b>Altitude</b> : {html.escape(altitude)}")
+        lines.append(f"<b>Altitude</b> : {altitude}")
 
     if orientation := create_route_orientation(route):
-        lines.append(f"<b>Orientation</b> : {html.escape(orientation)}")
+        lines.append(f"<b>Orientation</b> : {orientation}")
+    # TODO: use image for orientation ?
 
     if height := create_route_height(route):
-        lines.append(f"<b>Dénivelé</b> : {html.escape(height)}")
-
-    for k, n in route_keys.items():
-        v = route.get(k)
-        if not v:
-            continue
-        lines.append(f"<b>{html.escape(n)}</b> : {html.escape(str(v))}")
-    # TODO:
-    # - use image for orientation ?
-    # - fetch individual route data for a comprehensive description (approach, pitches, ...)
+        lines.append(f"<b>Dénivelé</b> : {height}")
 
     if summary is not None:
-        lines.append(f"<b>Description</b> : {html.escape(clean_bbcode(summary))}")
-    return "<br/>".join(lines)
+        lines.append(clean_and_html(summary))
+    lines.append('</p>')
+    
+    lines.append('<hr>')
+    
+    if route_history is not None:
+        lines.append(
+            f"<h1>Historique</h1> {clean_and_html(route_history)}"
+        )
+    if description is not None:
+        lines.append(f"<h1>Description</h1> {clean_and_html(description)}")
+    if remarks is not None:
+        lines.append(f"<h1>Remarques</h1> {clean_and_html(remarks)}")
+    if gear is not None:
+        lines.append(f"<h1>Équipement</h1> {clean_and_html(gear)}")
+
+    body = "<br/>".join(lines)
+    return title, body
+
+
+def get_route_coord(route: dict[str, Any]) -> tuple[float, float]:
+    x, y = json.loads(route["geometry"]["geom"])["coordinates"]
+    return transformer.transform(x, y)
 
 
 def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
-    desc = route["locales"][
-        0
-    ]  # take the first language available, TODO: select fr > en > fail !
-    title = desc.get("title", "N/A")
-    x, y = json.loads(route["geometry"]["geom"])["coordinates"]
-    lon, lat = transformer.transform(x, y)
+    # take the first language available, TODO: select fr > en > fail !
+    title, desc = create_route_info(route)
+    lon, lat = get_route_coord(route)
     wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
-    wp.description = create_route_description(route, title, desc)
+    wp.description = desc
     # wp.comment = f""
     return wp
 
 
-def download_routes() -> None:
+def get_route_ids(params: dict[str, Any]) -> list[int]:
     response = requests.get(search_url, params=params, headers=headers)
     response.raise_for_status()
     data: dict[str, Any] = response.json()
-    print(f"fetched {data['total']} routes")
-    routes = data["documents"]
-    # assert len(routes) == data['total']  # TODO: handle cases where len(routes) < data['total'] (pagination)
+    routes = data["documents"]  # TODO: sqlite validation
+    return [r["document_id"] for r in routes]
+
+
+def get_route_data(route_id):
+    response = requests.get(f"{search_url}/{route_id}").json()
+    if not getattr(response, "from_cache", False):
+        time.sleep(delay)
+    return response
+
+
+def build_gpx(route_ids: list[int]):
+
+    routes_data = []
+    for rid in tqdm.tqdm(route_ids, total=len(route_ids)):
+        routes_data.append(get_route_data(rid))
 
     gpx = gpxpy.gpx.GPX()
-
-    for route in routes:
-        wp = create_route_waypoint(route)
+    for route_data in routes_data:
+        wp = create_route_waypoint(route_data)
         gpx.waypoints.append(wp)
 
-    with open(
-        os.path.join(export_folder, "voies_climbing.gpx"), "w", encoding="utf-8"
-    ) as f:
-        f.write(gpx.to_xml())
+    return gpx
 
-    print(f"file created with {len(gpx.waypoints)} waypoints")
+
+def save_gpx(gpx, name):
+    with open(os.path.join(export_folder, name), "w", encoding="utf-8") as f:
+        f.write(gpx.to_xml())
+    print(f"file {name} created with {len(gpx.waypoints)} waypoints")
 
 
 if __name__ == "__main__":
-    download_routes()
+    route_ids = get_route_ids(params)
+    gpx = build_gpx(route_ids)
+    save_gpx(gpx, "climbing_routes.gpx")
