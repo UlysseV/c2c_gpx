@@ -24,7 +24,6 @@ transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 base_url = "https://www.camptocamp.org/routes"
 search_url = "https://api.camptocamp.org/routes"
 
-# TODO: pass as a parameter
 params = {
     "act": "rock_climbing",
     "bbox": "616096,5333945,627309,5346461",  # Cap Canaille
@@ -120,12 +119,12 @@ def create_route_height(route: dict[str, Any]) -> str:
 def increment_pitches(text: str) -> str:
     count_l, count_r = 0, 0
 
-    def repl_l(m):
+    def repl_l(m: Any) -> str:
         nonlocal count_l
         count_l += 1
         return f"<b>L{count_l}</b>"
 
-    def repl_r(m):
+    def repl_r(m: Any) -> str:
         nonlocal count_r
         count_r += 1
         return f"<b>R{count_r}</b>"
@@ -167,13 +166,14 @@ def clean_and_html(text: str) -> str:
     html = markdown.markdown(text, extensions=["nl2br", "sane_lists", "tables"])
     return html
 
-def get_locale(route, lang="fr") -> dict[str, Any] | None:
+def get_locale(route: dict[str, Any], lang: str="fr") -> dict[str, Any] | None:
     for loc in route["locales"]:
         if loc["lang"] == lang:
+            assert isinstance(loc, dict)
             return loc
     return None
 
-def get_locales(route, langs=["fr", "en"]) -> dict[str, Any]:
+def get_locales(route: dict[str, Any], langs: list[str]=["fr", "en"]) -> dict[str, Any]:
     for lang in langs:
         if loc := get_locale(route, lang):
             return loc
@@ -203,12 +203,12 @@ def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
 
     if orientation := create_route_orientation(route):
         lines.append(f"<b>Orientation</b> : {orientation}")
-    # TODO: use image for orientation ?
+    # TODO: use compass rose image for orientation ?
 
     if height := create_route_height(route):
         lines.append(f"<b>Dénivelé</b> : {height}")
         
-    # TODO: rock type (limestone, sandstone), climbing type (multi-pitch, bloc,...)
+    # TODO: add rock type (limestone, sandstone), climbing type (multi-pitch, bloc,...)
 
     if summary is not None:
         lines.append(clean_and_html(summary))
@@ -233,7 +233,10 @@ def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
 
 def get_route_coord(route: dict[str, Any]) -> tuple[float, float]:
     x, y = json.loads(route["geometry"]["geom"])["coordinates"]
-    return transformer.transform(x, y)
+    lon, lat = transformer.transform(x, y)
+    assert isinstance(lon, float)
+    assert isinstance(lat, float)
+    return lon, lat
 
 
 def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
@@ -266,7 +269,9 @@ def get_route_data(route_id: int) -> dict[str, Any]:
     response = requests.get(f"{search_url}/{route_id}")
     if not getattr(response, "from_cache", False):
         time.sleep(delay)
-    return response.json()
+    response_json = response.json()
+    assert isinstance(response_json, dict)
+    return response_json
 
 
 def build_gpx(route_ids: list[int]) -> gpxpy.gpx.GPX:
@@ -283,13 +288,14 @@ def build_gpx(route_ids: list[int]) -> gpxpy.gpx.GPX:
     return gpx
 
 
-def save_gpx(gpx, name):
+def save_gpx(gpx: gpxpy.gpx.GPX, name: str) -> None:
     with open(os.path.join(export_folder, name), "w", encoding="utf-8") as f:
         f.write(gpx.to_xml())
     print(f"file {name} created with {len(gpx.waypoints)} waypoints")
 
 
 if __name__ == "__main__":
+    # TODO: compute params from an input arg (c2c url)
     route_ids = get_route_ids(params)
     gpx = build_gpx(route_ids)
     save_gpx(gpx, "climbing_routes.gpx")

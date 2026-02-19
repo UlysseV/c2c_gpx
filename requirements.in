@@ -1,10 +1,11 @@
 
 gpxpy==1.*
-markdown
+markdown==3.*
+mypy==1.*
 pyproj==3.*
 requests==2.*
 requests_cache==1.*
-tqdm
+tqdm==4.*
 
 types-requests
 types-tqdm

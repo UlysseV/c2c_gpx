@@ -18,8 +18,16 @@ idna==3.11
     # via
     #   requests
     #   url-normalize
+librt==0.8.1
+    # via mypy
 markdown==3.10.2
     # via -r requirements.in
+mypy==1.19.1
+    # via -r requirements.in
+mypy-extensions==1.1.0
+    # via mypy
+pathspec==1.0.4
+    # via mypy
 platformdirs==4.9.2
     # via requests-cache
 pyproj==3.7.2
@@ -41,7 +49,9 @@ types-requests==2.32.4.20260107
 types-tqdm==4.67.3.20260205
     # via -r requirements.in
 typing-extensions==4.15.0
-    # via cattrs
+    # via
+    #   cattrs
+    #   mypy
 url-normalize==2.2.1
     # via requests-cache
 urllib3==2.6.3
