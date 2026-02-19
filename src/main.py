@@ -24,48 +24,13 @@ transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
 # Base URL for the C2C API
 API_BASE_URL = "https://api.camptocamp.org"
-
-# todo: enable base urls for outings, accidents, etc.
-base_url = "https://www.camptocamp.org/routes"
-search_url = "https://api.camptocamp.org/routes"
-
-# params = {
-#     "act": "rock_climbing",
-#     "bbox": "616096,5333945,627309,5346461",  # Cap Canaille
-#     # "bbox": "600371,5336634,616327,5353833",  # Calanques
-#     "frat": "2,6b",
-#     "rrat": "2,6a",
-#     "qa": "draft,great",
-#     "limit": 100,
-# }
+BASE_URL = "https://www.camptocamp.org/routes"
 
 delay = 0.5
 
 headers = {"User-Agent": "C2C-GPX-Exporter-User"}
 
-# route_keys = {
-#     "elevation_min": "Altitude min",
-#     "elevation_max": "Altitude max",
-#     "height_diff_up": "Dénivelé positif",
-#     "height_diff_down": "Dénivelé négatif",
-#     "durations": "Durée",
-#     "calculated_duration": "Durée calculée",
-#     "height_diff_difficulties": "Dénivelé des difficultés",
-#     "orientations": "Orientation",
-#     "global_rating": "Cotation globale",
-#     "engagement_rating": "Engagement",
-#     "risk_rating": "Risque",
-#     "equipment_rating": "Équipement",
-#     "exposition_rock_rating": "Exposition",
-#     "rock_free_rating": "Cotation libre",
-#     "rock_required_rating": "Cotation obligatoire",
-#     "aid_rating": "Cotation artificielle",
-#     "climbing_outdoor_type": "Type d'escalade",
-#     "public_transportation_rating": "Transports publiques",
-# }
-
 export_folder = "exports"
-
 
 def create_route_grade(route: dict[str, Any]) -> str:
     gradings = ""
@@ -195,7 +160,7 @@ def format_route_description(route_data: dict[str, Any]) -> str:
     remarks = desc.get("remarks")
     gear = desc.get("gear")
 
-    lines = [f'<p> <a href="{base_url}/{route_id}">{route_id}</a>']
+    lines = [f'<p> <a href="{BASE_URL}/{route_id}">{route_id}</a>']
 
     if title_prefix:
         lines.append(f"<b>Secteur</b> : {title_prefix}")
@@ -248,7 +213,7 @@ def get_default_description(doc_type: str, document_data: dict[str, Any]) -> str
     document_id = document_data["document_id"]
     desc = get_locales(document_data)
 
-    lines = [f'<p> <a href="{base_url}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>']
+    lines = [f'<p> <a href="{BASE_URL}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>']
 
     for k, v in desc.items():
         if k in ("title", "lang", "version", "topic_id") or not v:
@@ -315,7 +280,7 @@ def build_gpx(doc_type: str, documents_data: dict[int, dict[str, Any]]) -> gpxpy
 
 
 def save_gpx(gpx: gpxpy.gpx.GPX, name: str) -> None:
-    with open(os.path.join(export_folder, name), "w", encoding="utf-8") as f:
+    with open(name, "w", encoding="utf-8") as f:
         f.write(gpx.to_xml())
     print(f"file {name} created with {len(gpx.waypoints)} waypoints")
 
@@ -361,6 +326,15 @@ def get_document_ids(doc_type: str, params: dict[str, Any]) -> list[int]:
     return output
 
 
+def generate_filename(doc_type: str, params: dict[str, Any]) -> str:
+    """Generate a filename based on document type and search parameters."""
+    parts = [doc_type]
+    for k, v in params.items():
+        v = str(v).replace(",", "-")
+        parts.append(f"{k}-{v}")
+    return "_".join(parts) + ".gpx"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Export camptocamp.org documents (routes, outings, waypoints, xreports) to GPX format"
@@ -369,6 +343,12 @@ def main() -> None:
         "url",
         type=str,
         help="Camptocamp.org search URL (e.g., https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461)",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        type=str,
+        default=None,
+        help="Output GPX filename (default: auto-generated based on params)",
     )
     args = parser.parse_args()
     
@@ -379,7 +359,15 @@ def main() -> None:
     document_ids = get_document_ids(doc_type, params)
     documents_data = get_documents_data(doc_type, document_ids)
     gpx = build_gpx(doc_type, documents_data)
-    save_gpx(gpx, f"{doc_type}.gpx")  # TODO: better naming
+    
+    # Determine output filename
+    if args.output:
+        filename = args.output if os.path.isabs(args.output) else os.path.join(export_folder, args.output)
+    else:
+        default_filename = generate_filename(doc_type, params)
+        filename = os.path.join(export_folder, default_filename)
+    
+    save_gpx(gpx, filename)
 
 
 if __name__ == "__main__":
