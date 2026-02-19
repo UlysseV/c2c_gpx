@@ -13,7 +13,6 @@ import time
 import tqdm
 
 
-# TODO: check that this does something (which I presently doubt)
 requests_cache.install_cache(
     "c2c_cache", backend="sqlite", expire_after=timedelta(days=1)
 )
@@ -238,7 +237,6 @@ def get_route_coord(route: dict[str, Any]) -> tuple[float, float]:
 
 
 def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
-    # take the first language available, TODO: select fr > en > fail !
     title, desc = create_route_info(route)
     lon, lat = get_route_coord(route)
     wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
@@ -264,14 +262,14 @@ def get_route_ids(params: dict[str, Any]) -> list[int]:
     return output
 
 
-def get_route_data(route_id):
-    response = requests.get(f"{search_url}/{route_id}").json()
+def get_route_data(route_id: int) -> dict[str, Any]:
+    response = requests.get(f"{search_url}/{route_id}")
     if not getattr(response, "from_cache", False):
         time.sleep(delay)
-    return response
+    return response.json()
 
 
-def build_gpx(route_ids: list[int]):
+def build_gpx(route_ids: list[int]) -> gpxpy.gpx.GPX:
 
     routes_data = []
     for rid in tqdm.tqdm(route_ids, total=len(route_ids)):
