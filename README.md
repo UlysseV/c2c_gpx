@@ -3,7 +3,6 @@
 Export camptocamp search data to a gpx file intended for osmand or oruxmap.
 
 ## TODO
-- make the tool more general (area, activity, outings, ...)
 - add icons per activity
 - optionally use osmand-specific tags in route description (eg. color per grade, etc.)
 - optionally embedd images inside the description
