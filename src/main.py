@@ -22,6 +22,9 @@ requests_cache.install_cache(
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
+# Base URL for the C2C API
+API_BASE_URL = "https://api.camptocamp.org"
+
 # todo: enable base urls for outings, accidents, etc.
 base_url = "https://www.camptocamp.org/routes"
 search_url = "https://api.camptocamp.org/routes"
@@ -181,10 +184,10 @@ def get_locales(route: dict[str, Any], langs: list[str]=["fr", "en"]) -> dict[st
             return loc
     raise RuntimeError(f"route {route['document_id']} has no locale in {langs}")
 
-def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
-    route_id = route["document_id"]
-    desc = get_locales(route)
-    title = desc["title"]
+def format_route_description(route_data: dict[str, Any]) -> str:
+    route_id = route_data["document_id"]
+    desc = get_locales(route_data)
+    # title = desc["title"]
     title_prefix = desc.get("title_prefix")
     summary = desc.get("summary")
     route_history = desc.get("route_history")
@@ -197,17 +200,17 @@ def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
     if title_prefix:
         lines.append(f"<b>Secteur</b> : {title_prefix}")
 
-    if cotation := create_route_grade(route):
+    if cotation := create_route_grade(route_data):
         lines.append(f"<b>Cotations</b> : {cotation}")
 
-    if altitude := create_route_altitude(route):
+    if altitude := create_route_altitude(route_data):
         lines.append(f"<b>Altitude</b> : {altitude}")
 
-    if orientation := create_route_orientation(route):
+    if orientation := create_route_orientation(route_data):
         lines.append(f"<b>Orientation</b> : {orientation}")
     # TODO: use compass rose image for orientation ?
 
-    if height := create_route_height(route):
+    if height := create_route_height(route_data):
         lines.append(f"<b>Dénivelé</b> : {height}")
         
     # TODO: add rock type (limestone, sandstone), climbing type (multi-pitch, bloc,...)
@@ -230,45 +233,64 @@ def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
         lines.append(f"<h1>Équipement</h1> {clean_and_html(gear)}")
 
     body = "<br/>".join(lines)
-    return title, body
+    return body
 
 
-def get_route_coord(route: dict[str, Any]) -> tuple[float, float]:
-    x, y = json.loads(route["geometry"]["geom"])["coordinates"]
+def get_document_coord(document_data: dict[str, Any]) -> tuple[float, float]:
+    x, y = json.loads(document_data["geometry"]["geom"])["coordinates"]
     lon, lat = transformer.transform(x, y)
     assert isinstance(lon, float)
     assert isinstance(lat, float)
     return lon, lat
 
 
-def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
-    title, desc = create_route_info(route)
-    lon, lat = get_route_coord(route)
+def get_default_description(doc_type: str, document_data: dict[str, Any]) -> str:
+    document_id = document_data["document_id"]
+    desc = get_locales(document_data)
+
+    lines = [f'<p> <a href="{base_url}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>']
+
+    for k, v in desc.items():
+        if k in ("title", "lang", "version", "topic_id") or not v:
+            continue
+                    
+        content = clean_and_html(v) if isinstance(v, str) else v
+        lines.append(f"<b>{k}</b></br>{content}")
+    body = "<br/>".join(lines)
+    return body
+    
+    
+
+def get_document_description(doc_type: str, document_data: dict[str, Any]) -> str:
+    if doc_type == "routes":
+        return format_route_description(document_data)
+    
+    return get_default_description(doc_type, document_data)
+    
+
+
+def create_document_waypoint(doc_type: str, document_data: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
+    """Create a GPX waypoint from any document type."""
+    loc = get_locales(document_data)
+    title = loc["title"]
+    lon, lat = get_document_coord(document_data)
     wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
-    wp.description = desc
-    # wp.comment = f""
+    
+    description = get_document_description(doc_type, document_data)
+    wp.description = description
+    
+    # TODO: use other attributes ?
+    # wp.comment
+    # wp.symbol
+    # wp.elevation
+    # wp.link
+    
     return wp
 
 
-def get_route_ids(params: dict[str, Any]) -> list[int]:
-    output: list[int] = []
-    offset = 0
-    while True:
-        params["offset"] = offset
-        response = requests.get(search_url, params=params, headers=headers)
-        response.raise_for_status()
-        data: dict[str, Any] = response.json()
-        routes = data["documents"]  # TODO: sqlite validation
-        if len(routes) == 0:
-            break
-        offset += len(routes)
-        output.extend(r["document_id"] for r in routes)
-
-    return output
-
-
-def get_route_data(route_id: int) -> dict[str, Any]:
-    response = requests.get(f"{search_url}/{route_id}")
+def get_document_data(doc_type: str, document_id: int) -> dict[str, Any]:
+    url = f"{API_BASE_URL}/{doc_type}/{document_id}"
+    response = requests.get(url)
     if not getattr(response, "from_cache", False):
         time.sleep(delay)
     response_json = response.json()
@@ -276,15 +298,17 @@ def get_route_data(route_id: int) -> dict[str, Any]:
     return response_json
 
 
-def build_gpx(route_ids: list[int]) -> gpxpy.gpx.GPX:
+def get_documents_data(doc_type: str, document_ids: list[int]) -> dict[int, dict[str, Any]]:
+    documents_data: dict[int, dict[str, Any]] = dict()
+    for doc_id in tqdm.tqdm(document_ids, total=len(document_ids)):
+        documents_data[doc_id] = get_document_data(doc_type, doc_id)
+    return documents_data
 
-    routes_data = []
-    for rid in tqdm.tqdm(route_ids, total=len(route_ids)):
-        routes_data.append(get_route_data(rid))
 
+def build_gpx(doc_type: str, documents_data: dict[int, dict[str, Any]]) -> gpxpy.gpx.GPX:
     gpx = gpxpy.gpx.GPX()
-    for route_data in routes_data:
-        wp = create_route_waypoint(route_data)
+    for doc_data in documents_data.values():
+        wp = create_document_waypoint(doc_type, doc_data)
         gpx.waypoints.append(wp)
 
     return gpx
@@ -296,26 +320,66 @@ def save_gpx(gpx: gpxpy.gpx.GPX, name: str) -> None:
     print(f"file {name} created with {len(gpx.waypoints)} waypoints")
 
 
-def parse_c2c_url(url: str) -> dict[str, Any]:
+def parse_c2c_url(url: str) -> tuple[str, dict[str, Any]]:
+    """
+    Parse a camptocamp.org search URL and extract the document type and API parameters.
+    
+    Returns a tuple of (document_type, params).
+    Supported document types: routes, outings, waypoints, xreports
+    """
     parsed = urlparse(url)
     query_params = parse_qs(parsed.query)
-    return {k: v[0] for k,v in query_params.items()}
+    
+    # Extract the document type from the URL path
+    doc_type = parsed.path.strip("/")
+
+    # Pass all query parameters directly to the API (convert lists to single values)
+    params: dict[str, Any] = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
+    
+    # Set limit to the max value (reduces queries due to pagination)
+    params["limit"] = 100
+    
+    return doc_type, params
+
+
+def get_document_ids(doc_type: str, params: dict[str, Any]) -> list[int]:
+    """Get document IDs based on the document type and search parameters."""
+    url = f"{API_BASE_URL}/{doc_type}"
+    output: list[int] = []
+    offset = 0
+    while True:
+        search_params = {**params, "offset": offset}
+        response = requests.get(url, params=search_params, headers=headers)
+        response.raise_for_status()
+        data: dict[str, Any] = response.json()
+        documents = data["documents"]
+        # TODO: compare len(documents) to data["total"] for breaking
+        if len(documents) == 0:
+            break
+        offset += len(documents)
+        output.extend(d["document_id"] for d in documents)
+    return output
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Export camptocamp.org climbing routes to GPX format"
+        description="Export camptocamp.org documents (routes, outings, waypoints, xreports) to GPX format"
     )
     parser.add_argument(
         "url",
         type=str,
-        help="Camptocamp.org route search URL (e.g., https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461)",
+        help="Camptocamp.org search URL (e.g., https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461)",
     )
     args = parser.parse_args()
-    params = parse_c2c_url(args.url)
-    route_ids = get_route_ids(params)
-    gpx = build_gpx(route_ids)
-    save_gpx(gpx, "climbing_routes.gpx")
+    
+    # Parse the URL to get document type and API params
+    doc_type, params = parse_c2c_url(args.url)
+    
+    print(f"Fetching {doc_type}...")
+    document_ids = get_document_ids(doc_type, params)
+    documents_data = get_documents_data(doc_type, document_ids)
+    gpx = build_gpx(doc_type, documents_data)
+    save_gpx(gpx, f"{doc_type}.gpx")  # TODO: better naming
 
 
 if __name__ == "__main__":
