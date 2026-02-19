@@ -1,4 +1,5 @@
 .venv/*
 exports/*
 *.sqlite
-*/__pycache__/*
+**/__pycache__/*
+**/*.egg-info/*

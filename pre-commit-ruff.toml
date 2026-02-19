@@ -1,0 +1,40 @@
+# Configuration of the git pre-commit hooks. It uses ruff to check rules.
+# Note that your local IDE will use the configuration file "pyproject.toml"
+# and not this one. Please make sure that both are coherent (i.e. usually more strict
+# in your local IDE than on the githooks and CI)
+
+line-length = 120
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore=[
+    # Line too long
+    # "E501",
+    # Module level import not at top of file
+    "E402",
+    # Use ternary operator
+    "SIM108",
+    # Ambiguous variable name
+    "E741",
+    # Do not perform function call in argument defaults
+    "B008",
+]
+
+[lint.isort]
+section-order = ["future", "standard-library", "known-third-party", "first-party", "third-party", "local-folder"]
+
+# [lint.isort.sections]
+# known-third-party = []

@@ -1,0 +1,71 @@
+[project]
+name = "c2c_gpx"
+description = "tool for exporting camptocamp searches into gpx files"
+readme = "README.md"
+# license = "TODO"
+version = "0.0.1"
+
+requires-python = ">=3.10"
+
+
+[project.urls]
+Homepage = "https://github.com/UlysseV/c2c_gpx"
+Repository = "https://github.com/UlysseV/c2c_gpx.git"
+Issues = "https://github.com/UlysseV/c2c_gpx/issues"
+
+
+[tool.setuptools.dynamic]
+version = {attr = "c2c_gpx.__version__"}
+
+
+[project.scripts]
+c2c_gpx = "c2c_gpx.main:main"
+
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = [
+    # Line too long
+    # "E501",
+    # Module level import not at top of file
+    "E402",
+    # Use ternary operator
+    "SIM108",
+    # Ambiguous variable name
+    "E741",
+    # Do not perform function call in argument defaults
+    "B008",
+]
+
+[tool.ruff.lint.isort]
+section-order = ["future", "standard-library", "known-third-party", "first-party", "third-party", "local-folder"]
+
+# [tool.ruff.lint.isort.sections]
+# known-third-party = []
+
+[tool.mypy]
+strict = true
+warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["src/"]
+omit = ["*/legacy/*", ".venv/*", "data/*", "exports/*", "models/*", "notebooks/*", "Package/*", "scripts/*", "splits/*", "tests/*"]
+
+[tool.coverage.html]
+directory = "coverage_html_report"

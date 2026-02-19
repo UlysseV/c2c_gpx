@@ -1,23 +1,21 @@
 import argparse
-from datetime import timedelta
-from pyproj import Transformer
-from typing import Any
-import gpxpy
-import gpxpy.gpx
 import json
-import markdown
 import os
 import re
+import time
+from datetime import timedelta
+from typing import Any
+from urllib.parse import parse_qs, urlparse
+
+import gpxpy
+import gpxpy.gpx
+import markdown
 import requests
 import requests_cache
-import time
 import tqdm
-from urllib.parse import urlparse, parse_qs
+from pyproj import Transformer
 
-
-requests_cache.install_cache(
-    "c2c_cache", backend="sqlite", expire_after=timedelta(days=1)
-)
+requests_cache.install_cache("c2c_cache", backend="sqlite", expire_after=timedelta(days=1))
 
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
@@ -31,6 +29,7 @@ delay = 0.5
 headers = {"User-Agent": "C2C-GPX-Exporter-User"}
 
 export_folder = "exports"
+
 
 def create_route_grade(route: dict[str, Any]) -> str:
     gradings = ""
@@ -102,11 +101,11 @@ def increment_pitches(text: str) -> str:
     # handle numberless pitches
     text = text.replace(r"L#~", "")
     text = text.replace(r"R#~", "")
-    
+
     # handle already numbered pitches
     text = re.sub(r"L#(\d+)", r"<b>L\1</b>", text)
     text = re.sub(r"R#(\d+)", r"<b>R\1</b>", text)
-    
+
     text = re.sub(r"L#", repl_l, text)
     text = re.sub(r"R#", repl_r, text)
     return text
@@ -117,37 +116,43 @@ def clean_and_html(text: str) -> str:
     text = re.sub(
         r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:\|(.*?))?\]\]",
         lambda m: (
-            f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}">{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
+            f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}">'
+            + '{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
         ),
         text,
     )
-    
+
     # replace image ref
     text = re.sub(
-        r'\[img=(\d+).*?\](.*?)\[/img\]',
-        # r'<div style="font-size:0.9em; color:#666;"><img src="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg" style="width:100%;"><br>📸 \2</div>',
+        r"\[img=(\d+).*?\](.*?)\[/img\]",
+        # r'<div style="font-size:0.9em; color:#666;">'+
+        # '<img src="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg" style="width:100%;">'+
+        # '<br>\2</div>',
         r'<a href="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg">[📸 \2]</a>',
-        text
+        text,
     )
-    
+
     text = text.replace("|", "<td>")
 
     text = increment_pitches(text)
     html = markdown.markdown(text, extensions=["nl2br", "sane_lists", "tables"])
     return html
 
-def get_locale(route: dict[str, Any], lang: str="fr") -> dict[str, Any] | None:
+
+def get_locale(route: dict[str, Any], lang: str = "fr") -> dict[str, Any] | None:
     for loc in route["locales"]:
         if loc["lang"] == lang:
             assert isinstance(loc, dict)
             return loc
     return None
 
-def get_locales(route: dict[str, Any], langs: list[str]=["fr", "en"]) -> dict[str, Any]:
+
+def get_locales(route: dict[str, Any], langs: list[str] = ("fr", "en")) -> dict[str, Any]:
     for lang in langs:
         if loc := get_locale(route, lang):
             return loc
     raise RuntimeError(f"route {route['document_id']} has no locale in {langs}")
+
 
 def format_route_description(route_data: dict[str, Any]) -> str:
     route_id = route_data["document_id"]
@@ -177,19 +182,17 @@ def format_route_description(route_data: dict[str, Any]) -> str:
 
     if height := create_route_height(route_data):
         lines.append(f"<b>Dénivelé</b> : {height}")
-        
+
     # TODO: add rock type (limestone, sandstone), climbing type (multi-pitch, bloc,...)
 
     if summary is not None:
         lines.append(clean_and_html(summary))
-    lines.append('</p>')
-    
-    lines.append('<hr>')
-    
+    lines.append("</p>")
+
+    lines.append("<hr>")
+
     if route_history is not None:
-        lines.append(
-            f"<h1>Historique</h1> {clean_and_html(route_history)}"
-        )
+        lines.append(f"<h1>Historique</h1> {clean_and_html(route_history)}")
     if description is not None:
         lines.append(f"<h1>Description</h1> {clean_and_html(description)}")
     if remarks is not None:
@@ -218,20 +221,18 @@ def get_default_description(doc_type: str, document_data: dict[str, Any]) -> str
     for k, v in desc.items():
         if k in ("title", "lang", "version", "topic_id") or not v:
             continue
-                    
+
         content = clean_and_html(v) if isinstance(v, str) else v
         lines.append(f"<b>{k}</b></br>{content}")
     body = "<br/>".join(lines)
     return body
-    
-    
+
 
 def get_document_description(doc_type: str, document_data: dict[str, Any]) -> str:
     if doc_type == "routes":
         return format_route_description(document_data)
-    
+
     return get_default_description(doc_type, document_data)
-    
 
 
 def create_document_waypoint(doc_type: str, document_data: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
@@ -240,16 +241,16 @@ def create_document_waypoint(doc_type: str, document_data: dict[str, Any]) -> gp
     title = loc["title"]
     lon, lat = get_document_coord(document_data)
     wp = gpxpy.gpx.GPXWaypoint(latitude=lat, longitude=lon, name=title)
-    
+
     description = get_document_description(doc_type, document_data)
     wp.description = description
-    
+
     # TODO: use other attributes ?
     # wp.comment
     # wp.symbol
     # wp.elevation
     # wp.link
-    
+
     return wp
 
 
@@ -288,22 +289,22 @@ def save_gpx(gpx: gpxpy.gpx.GPX, name: str) -> None:
 def parse_c2c_url(url: str) -> tuple[str, dict[str, Any]]:
     """
     Parse a camptocamp.org search URL and extract the document type and API parameters.
-    
+
     Returns a tuple of (document_type, params).
     Supported document types: routes, outings, waypoints, xreports
     """
     parsed = urlparse(url)
     query_params = parse_qs(parsed.query)
-    
+
     # Extract the document type from the URL path
     doc_type = parsed.path.strip("/")
 
     # Pass all query parameters directly to the API (convert lists to single values)
     params: dict[str, Any] = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
-    
+
     # Set limit to the max value (reduces queries due to pagination)
     params["limit"] = 100
-    
+
     return doc_type, params
 
 
@@ -342,31 +343,33 @@ def main() -> None:
     parser.add_argument(
         "url",
         type=str,
-        help="Camptocamp.org search URL (e.g., https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461)",
+        help="Camptocamp.org search URL "
+        + "(e.g., https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461)",
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=str,
         default=None,
         help="Output GPX filename (default: auto-generated based on params)",
     )
     args = parser.parse_args()
-    
+
     # Parse the URL to get document type and API params
     doc_type, params = parse_c2c_url(args.url)
-    
+
     print(f"Fetching {doc_type}...")
     document_ids = get_document_ids(doc_type, params)
     documents_data = get_documents_data(doc_type, document_ids)
     gpx = build_gpx(doc_type, documents_data)
-    
+
     # Determine output filename
     if args.output:
         filename = args.output if os.path.isabs(args.output) else os.path.join(export_folder, args.output)
     else:
         default_filename = generate_filename(doc_type, params)
         filename = os.path.join(export_folder, default_filename)
-    
+
     save_gpx(gpx, filename)
 
 
