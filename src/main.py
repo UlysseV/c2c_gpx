@@ -1,3 +1,4 @@
+import argparse
 from datetime import timedelta
 from pyproj import Transformer
 from typing import Any
@@ -11,6 +12,7 @@ import requests
 import requests_cache
 import time
 import tqdm
+from urllib.parse import urlparse, parse_qs
 
 
 requests_cache.install_cache(
@@ -24,15 +26,15 @@ transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 base_url = "https://www.camptocamp.org/routes"
 search_url = "https://api.camptocamp.org/routes"
 
-params = {
-    "act": "rock_climbing",
-    "bbox": "616096,5333945,627309,5346461",  # Cap Canaille
-    # "bbox": "600371,5336634,616327,5353833",  # Calanques
-    "frat": "2,6b",
-    "rrat": "2,6a",
-    "qa": "draft,great",
-    "limit": 100,
-}
+# params = {
+#     "act": "rock_climbing",
+#     "bbox": "616096,5333945,627309,5346461",  # Cap Canaille
+#     # "bbox": "600371,5336634,616327,5353833",  # Calanques
+#     "frat": "2,6b",
+#     "rrat": "2,6a",
+#     "qa": "draft,great",
+#     "limit": 100,
+# }
 
 delay = 0.5
 
@@ -294,8 +296,27 @@ def save_gpx(gpx: gpxpy.gpx.GPX, name: str) -> None:
     print(f"file {name} created with {len(gpx.waypoints)} waypoints")
 
 
-if __name__ == "__main__":
-    # TODO: compute params from an input arg (c2c url)
+def parse_c2c_url(url: str) -> dict[str, Any]:
+    parsed = urlparse(url)
+    query_params = parse_qs(parsed.query)
+    return {k: v[0] for k,v in query_params.items()}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Export camptocamp.org climbing routes to GPX format"
+    )
+    parser.add_argument(
+        "url",
+        type=str,
+        help="Camptocamp.org route search URL (e.g., https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461)",
+    )
+    args = parser.parse_args()
+    params = parse_c2c_url(args.url)
     route_ids = get_route_ids(params)
     gpx = build_gpx(route_ids)
     save_gpx(gpx, "climbing_routes.gpx")
+
+
+if __name__ == "__main__":
+    main()
