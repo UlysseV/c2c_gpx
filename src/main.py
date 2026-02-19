@@ -1,22 +1,22 @@
-import requests_cache
 from datetime import timedelta
+from pyproj import Transformer
+from typing import Any
+import gpxpy
+import gpxpy.gpx
+import json
+import markdown
+import os
+import re
+import requests
+import requests_cache
 import time
+import tqdm
 
+
+# TODO: check that this does something (which I presently doubt)
 requests_cache.install_cache(
     "c2c_cache", backend="sqlite", expire_after=timedelta(days=1)
 )
-
-import requests
-import gpxpy
-import gpxpy.gpx
-from typing import Any
-import json
-import os
-from pyproj import Transformer
-import re
-import tqdm
-import markdown
-
 
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
@@ -118,7 +118,7 @@ def create_route_height(route: dict[str, Any]) -> str:
     return " / ".join(e)
 
 
-def increment_pitches(text):
+def increment_pitches(text: str) -> str:
     count_l, count_r = 0, 0
 
     def repl_l(m):
@@ -131,16 +131,20 @@ def increment_pitches(text):
         count_r += 1
         return f"<b>R{count_r}</b>"
 
+    # handle numberless pitches
+    text = text.replace(r"L#~", "")
+    text = text.replace(r"R#~", "")
+    
+    # handle already numbered pitches
+    text = re.sub(r"L#(\d+)", r"<b>L\1</b>", text)
+    text = re.sub(r"R#(\d+)", r"<b>R\1</b>", text)
+    
     text = re.sub(r"L#", repl_l, text)
     text = re.sub(r"R#", repl_r, text)
     return text
 
 
-def clean_and_html(text):
-    if not text:
-        text = ""
-    text = text.replace("\\n", "\n")
-
+def clean_and_html(text: str) -> str:
     # replace C2C links with HTML ones
     text = re.sub(
         r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:\|(.*?))?\]\]",
@@ -148,6 +152,14 @@ def clean_and_html(text):
             f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}">{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
         ),
         text,
+    )
+    
+    # replace image ref
+    text = re.sub(
+        r'\[img=(\d+).*?\](.*?)\[/img\]',
+        # r'<div style="font-size:0.9em; color:#666;"><img src="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg" style="width:100%;"><br>📸 \2</div>',
+        r'<a href="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg">[📸 \2]</a>',
+        text
     )
     
     text = text.replace("|", "<td>")
@@ -196,6 +208,8 @@ def create_route_info(route: dict[str, Any]) -> tuple[str, str]:
 
     if height := create_route_height(route):
         lines.append(f"<b>Dénivelé</b> : {height}")
+        
+    # TODO: rock type (limestone, sandstone), climbing type (multi-pitch, bloc,...)
 
     if summary is not None:
         lines.append(clean_and_html(summary))
@@ -234,11 +248,20 @@ def create_route_waypoint(route: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
 
 
 def get_route_ids(params: dict[str, Any]) -> list[int]:
-    response = requests.get(search_url, params=params, headers=headers)
-    response.raise_for_status()
-    data: dict[str, Any] = response.json()
-    routes = data["documents"]  # TODO: sqlite validation
-    return [r["document_id"] for r in routes]
+    output: list[int] = []
+    offset = 0
+    while True:
+        params["offset"] = offset
+        response = requests.get(search_url, params=params, headers=headers)
+        response.raise_for_status()
+        data: dict[str, Any] = response.json()
+        routes = data["documents"]  # TODO: sqlite validation
+        if len(routes) == 0:
+            break
+        offset += len(routes)
+        output.extend(r["document_id"] for r in routes)
+
+    return output
 
 
 def get_route_data(route_id):
