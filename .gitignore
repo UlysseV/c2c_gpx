@@ -3,3 +3,4 @@ exports/*
 *.sqlite
 **/__pycache__/*
 **/*.egg-info/*
+dist/*
