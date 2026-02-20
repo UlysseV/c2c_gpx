@@ -131,6 +131,14 @@ def clean_and_html(text: str) -> str:
         r'<a href="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg">[📸 \2]</a>',
         text,
     )
+    text = re.sub(
+        r"\[img=(\d+).*?\\/]",
+        # r'<div style="font-size:0.9em; color:#666;">'+
+        # '<img src="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg" style="width:100%;">'+
+        # '<br>\2</div>',
+        r'<a href="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg">[📸]</a>',
+        text,
+    )
 
     text = text.replace("|", "<td>")
 
