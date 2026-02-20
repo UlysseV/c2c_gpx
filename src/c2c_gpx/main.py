@@ -28,8 +28,6 @@ delay = 0.5
 
 headers = {"User-Agent": "C2C-GPX-Exporter-User"}
 
-export_folder = "exports"
-
 
 def create_route_grade(route: dict[str, Any]) -> str:
     gradings = ""
@@ -363,7 +361,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Parse the URL to get document type and API params
     doc_type, params = parse_c2c_url(args.url)
 
     print(f"Fetching {doc_type}...")
@@ -371,13 +368,9 @@ def main() -> None:
     documents_data = get_documents_data(doc_type, document_ids)
     gpx = build_gpx(doc_type, documents_data)
 
-    # Determine output filename
-    if args.output:
-        filename = args.output if os.path.isabs(args.output) else os.path.join(export_folder, args.output)
-    else:
-        default_filename = generate_filename(doc_type, params)
-        filename = os.path.join(export_folder, default_filename)
-
+    filename = args.output or generate_filename(doc_type, params)
+    if args.output is not None and os.path.isdir(args.output):
+        filename = os.path.join(args.output, generate_filename(doc_type, params))
     save_gpx(gpx, filename)
 
 
