@@ -1,6 +1,6 @@
 [project]
 name = "c2c_gpx"
-version = "0.0.4"
+version = "0.0.5"
 description = "tool for exporting camptocamp searches into gpx files"
 readme = "README.md"
 license = "MIT"
