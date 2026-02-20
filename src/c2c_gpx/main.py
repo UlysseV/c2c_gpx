@@ -153,7 +153,7 @@ def get_locale(route: dict[str, Any], lang: str = "fr") -> dict[str, Any] | None
     return None
 
 
-def get_locales(route: dict[str, Any], langs: list[str] = ("fr", "en")) -> dict[str, Any]:
+def get_locales(route: dict[str, Any], langs: tuple[str, ...] = ("fr", "en")) -> dict[str, Any]:
     for lang in langs:
         if loc := get_locale(route, lang):
             return loc
