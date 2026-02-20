@@ -337,6 +337,8 @@ def generate_filename(doc_type: str, params: dict[str, Any]) -> str:
     """Generate a filename based on document type and search parameters."""
     parts = [doc_type]
     for k, v in params.items():
+        if k in ("limit", "offset"):
+            continue
         v = str(v).replace(",", "-")
         parts.append(f"{k}-{v}")
     return "_".join(parts) + ".gpx"
