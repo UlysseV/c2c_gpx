@@ -5,23 +5,26 @@ description = "tool for exporting camptocamp searches into gpx files"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-
+dynamic = ["dependencies"]
 requires-python = ">=3.10"
 
+[project.scripts]
+c2c_gpx = "c2c_gpx.main:main"
 
 [project.urls]
 Homepage = "https://github.com/UlysseV/c2c_gpx"
 Repository = "https://github.com/UlysseV/c2c_gpx.git"
 Issues = "https://github.com/UlysseV/c2c_gpx/issues"
 
+[build-system]
+requires = ["hatchling>=1.26", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.dynamic]
-version = {attr = "c2c_gpx.__version__"}
+[tool.hatch.build.targets.wheel]
+packages = ["src/c2c_gpx"]
 
-
-[project.scripts]
-c2c_gpx = "c2c_gpx.main:main"
-
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
 
 [tool.ruff]
 line-length = 120
@@ -63,10 +66,3 @@ section-order = ["future", "standard-library", "known-third-party", "first-party
 [tool.mypy]
 strict = true
 warn_unused_ignores = true
-
-[tool.coverage.run]
-source = ["src/"]
-omit = ["*/legacy/*", ".venv/*", "data/*", "exports/*", "models/*", "notebooks/*", "Package/*", "scripts/*", "splits/*", "tests/*"]
-
-[tool.coverage.html]
-directory = "coverage_html_report"
