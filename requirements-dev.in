@@ -1,0 +1,10 @@
+-c requirements.txt
+
+build
+mypy==1.*
+prek==0.*
+ruff==0.*
+twine
+types-markdown
+types-requests
+types-tqdm
