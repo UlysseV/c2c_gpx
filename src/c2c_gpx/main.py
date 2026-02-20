@@ -115,7 +115,7 @@ def clean_and_html(text: str) -> str:
         r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:\|(.*?))?\]\]",
         lambda m: (
             f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}">'
-            + '{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
+            + f'{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
         ),
         text,
     )
