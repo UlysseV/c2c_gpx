@@ -1,10 +1,10 @@
 -c requirements.txt
 
-build
-mypy==1.*
-prek==0.*
-ruff==0.*
-twine
+build==1.4.*
+mypy==1.19.*
+prek==0.3.*
+ruff==0.15.*
+twine==6.2.*
 types-markdown
 types-requests
 types-tqdm
