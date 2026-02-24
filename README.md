@@ -18,8 +18,9 @@ Go to camptocamp.org and search for your document/activity/area of interest.
 Check "Filter on map extent" and add any filter you want.
 When satisfied, use the url as a parameter to `c2c_gpx`:
 ```bash
-c2c_gpx https://www.camptocamp.org/routes?bbox=1234,5678,9101,11213&act=rock_climbing -o my_routes.gpx
+c2c_gpx "https://www.camptocamp.org/routes?bbox=1234,5678,9101,11213&act=rock_climbing" -o my_routes.gpx
 ```
+Note: quotes around the url are important for the `&` to be passed down correctly.
 
 The resulting file can be opened in any map app.
 
