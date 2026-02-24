@@ -14,7 +14,8 @@ Use `c2c_gpx -h` for help.
 
 ## How-To
 
-Go to camptocamp.org and search for your document/activity/area of interest, add any filter you want.
+Go to camptocamp.org and search for your document/activity/area of interest.
+Check "Filter on map extent" and add any filter you want.
 When satisfied, use the url as a parameter to `c2c_gpx`:
 ```bash
 c2c_gpx https://www.camptocamp.org/routes?bbox=1234,5678,9101,11213&act=rock_climbing -o my_routes.gpx
