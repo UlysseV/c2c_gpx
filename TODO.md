@@ -7,6 +7,7 @@
 - add format and type checking commit hooks
 - setup package building pipeline
 - add formatters for all document types
+- make full description opt-in
 
 In the far future :
 - run this as the backend of a web page (eg. using https://streamlit.io/)
