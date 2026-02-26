@@ -22,6 +22,8 @@ idna==3.11
     # via
     #   -c requirements.txt
     #   requests
+iniconfig==2.3.0
+    # via pytest
 jaraco-classes==3.4.0
     # via keyring
 jaraco-context==6.1.0
@@ -53,19 +55,25 @@ nh3==0.3.3
 packaging==26.0
     # via
     #   build
+    #   pytest
     #   twine
 pathspec==1.0.4
     # via mypy
+pluggy==1.6.0
+    # via pytest
 prek==0.3.3
     # via -r requirements-dev.in
 pycparser==3.0
     # via cffi
 pygments==2.19.2
     # via
+    #   pytest
     #   readme-renderer
     #   rich
 pyproject-hooks==1.2.0
     # via build
+pytest==9.0.2
+    # via -r requirements-dev.in
 readme-renderer==44.0
     # via twine
 requests==2.32.5
