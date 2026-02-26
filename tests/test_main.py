@@ -1,5 +1,7 @@
 """Tests for the c2c_gpx main module."""
 
+from typing import Any
+
 from c2c_gpx.main import (
     clean_and_html,
     create_route_altitude,
@@ -19,21 +21,21 @@ import pytest
 class TestCreateRouteGrade:
     """Tests for create_route_grade function."""
 
-    def test_empty_route(self):
+    def test_empty_route(self) -> None:
         """Test with an empty route dict."""
-        route = {}
+        route: dict[str, Any] = {}
         result = create_route_grade(route)
         assert result == ""
 
-    def test_only_global_rating(self):
+    def test_only_global_rating(self) -> None:
         """Test with only global_rating."""
-        route = {"global_rating": "5a"}
+        route: dict[str, Any] = {"global_rating": "5a"}
         result = create_route_grade(route)
         assert result == "5a"
 
-    def test_all_ratings(self):
+    def test_all_ratings(self) -> None:
         """Test with all rating fields."""
-        route = {
+        route: dict[str, Any] = {
             "global_rating": "5a",
             "rock_free_rating": "4c",
             "rock_required_rating": "3a",
@@ -46,9 +48,9 @@ class TestCreateRouteGrade:
         result = create_route_grade(route)
         assert result == "5a 4c>3a A1 E1 R1 P1 SO"
 
-    def test_partial_ratings(self):
+    def test_partial_ratings(self) -> None:
         """Test with some rating fields missing."""
-        route = {
+        route: dict[str, Any] = {
             "global_rating": "5b",
             "rock_free_rating": "4c",
             "risk_rating": "R2",
@@ -56,9 +58,9 @@ class TestCreateRouteGrade:
         result = create_route_grade(route)
         assert result == "5b 4c R2"
 
-    def test_whitespace_handling(self):
+    def test_whitespace_handling(self) -> None:
         """Test with values that have internal whitespace."""
-        route = {
+        route: dict[str, Any] = {
             "global_rating": "5a",
             "rock_free_rating": "4c",
         }
@@ -69,33 +71,33 @@ class TestCreateRouteGrade:
 class TestCreateRouteAltitude:
     """Tests for create_route_altitude function."""
 
-    def test_empty_elevation(self):
+    def test_empty_elevation(self) -> None:
         """Test with empty elevation values (all missing keys raise KeyError)."""
-        route = {}
+        route: dict[str, Any] = {}
         with pytest.raises(KeyError):
             create_route_altitude(route)
 
-    def test_only_min_elevation(self):
+    def test_only_min_elevation(self) -> None:
         """Test with only elevation_min."""
-        route = {"elevation_min": 1200, "elevation_max": None}
+        route: dict[str, Any] = {"elevation_min": 1200, "elevation_max": None}
         result = create_route_altitude(route)
         assert result == "1200 m"
 
-    def test_only_max_elevation(self):
+    def test_only_max_elevation(self) -> None:
         """Test with only elevation_max."""
-        route = {"elevation_min": None, "elevation_max": 2500}
+        route: dict[str, Any] = {"elevation_min": None, "elevation_max": 2500}
         result = create_route_altitude(route)
         assert result == "2500 m"
 
-    def test_both_elevations(self):
+    def test_both_elevations(self) -> None:
         """Test with both min and max elevation."""
-        route = {"elevation_min": 1200, "elevation_max": 2500}
+        route: dict[str, Any] = {"elevation_min": 1200, "elevation_max": 2500}
         result = create_route_altitude(route)
         assert result == "1200 m - 2500 m"
 
-    def test_zero_elevation(self):
+    def test_zero_elevation(self) -> None:
         """Test with zero elevation values (falsy in Python)."""
-        route = {"elevation_min": 0, "elevation_max": 0}
+        route: dict[str, Any] = {"elevation_min": 0, "elevation_max": 0}
         result = create_route_altitude(route)
         assert result == ""
 
@@ -103,21 +105,21 @@ class TestCreateRouteAltitude:
 class TestCreateRouteOrientation:
     """Tests for create_route_orientation function."""
 
-    def test_empty_orientation(self):
+    def test_empty_orientation(self) -> None:
         """Test with empty orientations (missing key raises KeyError)."""
-        route = {}
+        route: dict[str, Any] = {}
         with pytest.raises(KeyError):
             create_route_orientation(route)
 
-    def test_single_orientation(self):
+    def test_single_orientation(self) -> None:
         """Test with single orientation."""
-        route = {"orientations": ["N"]}
+        route: dict[str, Any] = {"orientations": ["N"]}
         result = create_route_orientation(route)
         assert result == "N"
 
-    def test_multiple_orientations(self):
+    def test_multiple_orientations(self) -> None:
         """Test with multiple orientations."""
-        route = {"orientations": ["N", "E", "S", "W"]}
+        route: dict[str, Any] = {"orientations": ["N", "E", "S", "W"]}
         result = create_route_orientation(route)
         assert result == "N,E,S,W"
 
@@ -125,39 +127,59 @@ class TestCreateRouteOrientation:
 class TestCreateRouteHeight:
     """Tests for create_route_height function."""
 
-    def test_empty_height(self):
+    def test_empty_height(self) -> None:
         """Test with empty height values (missing keys raise KeyError)."""
-        route = {}
+        route: dict[str, Any] = {}
         with pytest.raises(KeyError):
             create_route_height(route)
 
-    def test_only_up(self):
+    def test_only_up(self) -> None:
         """Test with only height_diff_up."""
-        route = {"height_diff_up": 500, "height_diff_down": None, "height_diff_difficulties": None}
+        route: dict[str, Any] = {
+            "height_diff_up": 500,
+            "height_diff_down": None,
+            "height_diff_difficulties": None,
+        }
         result = create_route_height(route)
         assert result == "+500 m"
 
-    def test_only_down(self):
+    def test_only_down(self) -> None:
         """Test with only height_diff_down."""
-        route = {"height_diff_up": None, "height_diff_down": 300, "height_diff_difficulties": None}
+        route: dict[str, Any] = {
+            "height_diff_up": None,
+            "height_diff_down": 300,
+            "height_diff_difficulties": None,
+        }
         result = create_route_height(route)
         assert result == "-300 m"
 
-    def test_both_diffs(self):
+    def test_both_diffs(self) -> None:
         """Test with both up and down diffs."""
-        route = {"height_diff_up": 500, "height_diff_down": 300, "height_diff_difficulties": None}
+        route: dict[str, Any] = {
+            "height_diff_up": 500,
+            "height_diff_down": 300,
+            "height_diff_difficulties": None,
+        }
         result = create_route_height(route)
         assert result == "+500 m / -300 m"
 
-    def test_with_difficulties_only(self):
+    def test_with_difficulties_only(self) -> None:
         """Test with only height_diff_difficulties."""
-        route = {"height_diff_up": None, "height_diff_down": None, "height_diff_difficulties": 200}
+        route: dict[str, Any] = {
+            "height_diff_up": None,
+            "height_diff_down": None,
+            "height_diff_difficulties": 200,
+        }
         result = create_route_height(route)
         assert result == "200 m"
 
-    def test_with_difficulties_and_up(self):
+    def test_with_difficulties_and_up(self) -> None:
         """Test with difficulties and up diff."""
-        route = {"height_diff_up": 500, "height_diff_down": None, "height_diff_difficulties": 200}
+        route: dict[str, Any] = {
+            "height_diff_up": 500,
+            "height_diff_down": None,
+            "height_diff_difficulties": 200,
+        }
         result = create_route_height(route)
         assert result == "+500 m (200 m)"
 
@@ -165,47 +187,47 @@ class TestCreateRouteHeight:
 class TestIncrementPitches:
     """Tests for increment_pitches function."""
 
-    def test_empty_text(self):
+    def test_empty_text(self) -> None:
         """Test with empty text."""
         result = increment_pitches("")
         assert result == ""
 
-    def test_numberless_l_pitch(self):
+    def test_numberless_l_pitch(self) -> None:
         """Test with numberless L pitch."""
         result = increment_pitches("L#~ start")
         assert result == " start"
 
-    def test_numberless_r_pitch(self):
+    def test_numberless_r_pitch(self) -> None:
         """Test with numberless R pitch."""
         result = increment_pitches("R#~ start")
         assert result == " start"
 
-    def test_already_numbered_l(self):
+    def test_already_numbered_l(self) -> None:
         """Test with already numbered L pitch."""
         result = increment_pitches("L#3 start")
         assert result == "<b>L3</b> start"
 
-    def test_already_numbered_r(self):
+    def test_already_numbered_r(self) -> None:
         """Test with already numbered R pitch."""
         result = increment_pitches("R#5 start")
         assert result == "<b>R5</b> start"
 
-    def test_increment_multiple_l(self):
+    def test_increment_multiple_l(self) -> None:
         """Test incrementing multiple L pitches."""
         result = increment_pitches("L# start L# end")
         assert result == "<b>L1</b> start <b>L2</b> end"
 
-    def test_increment_multiple_r(self):
+    def test_increment_multiple_r(self) -> None:
         """Test incrementing multiple R pitches."""
         result = increment_pitches("R# start R# end")
         assert result == "<b>R1</b> start <b>R2</b> end"
 
-    def test_increment_mixed_pitches(self):
+    def test_increment_mixed_pitches(self) -> None:
         """Test incrementing mixed L and R pitches."""
         result = increment_pitches("L# start R# middle L# end")
         assert result == "<b>L1</b> start <b>R1</b> middle <b>L2</b> end"
 
-    def test_complex_pitch_sequence(self):
+    def test_complex_pitch_sequence(self) -> None:
         """Test complex pitch sequence with numbers - each counter is independent."""
         result = increment_pitches("L#1 L#2 L# L#3 R# R#1 R#2")
         assert result == "<b>L1</b> <b>L2</b> <b>L1</b> <b>L3</b> <b>R1</b> <b>R1</b> <b>R2</b>"
@@ -214,50 +236,50 @@ class TestIncrementPitches:
 class TestCleanAndHtml:
     """Tests for clean_and_html function."""
 
-    def test_empty_text(self):
+    def test_empty_text(self) -> None:
         """Test with empty text."""
         result = clean_and_html("")
         assert result == ""
 
-    def test_c2c_route_link(self):
+    def test_c2c_route_link(self) -> None:
         """Test C2C route link conversion."""
         text = "[[routes/1234]]"
         result = clean_and_html(text)
         assert "https://www.camptocamp.org/routes/1234" in result
 
-    def test_c2c_route_link_with_name(self):
+    def test_c2c_route_link_with_name(self) -> None:
         """Test C2C route link with custom name."""
         text = "[[routes/1234|Custom Name]]"
         result = clean_and_html(text)
         assert "https://www.camptocamp.org/routes/1234" in result
         assert "Custom Name" in result
 
-    def test_c2c_waypoint_link(self):
+    def test_c2c_waypoint_link(self) -> None:
         """Test C2C waypoint link conversion."""
         text = "[[waypoints/5678]]"
         result = clean_and_html(text)
         assert "https://www.camptocamp.org/waypoints/5678" in result
 
-    def test_c2c_outing_link(self):
+    def test_c2c_outing_link(self) -> None:
         """Test C2C outing link conversion."""
         text = "[[outings/9999|Some Outing]]"
         result = clean_and_html(text)
         assert "https://www.camptocamp.org/outings/9999" in result
 
-    def test_image_link_with_caption(self):
+    def test_image_link_with_caption(self) -> None:
         """Test image link with caption."""
         text = "[img=12345]caption[/img]"
         result = clean_and_html(text)
         assert "https://media.camptocamp.org/c2corg-active/uploads/images/12345.jpg" in result
 
-    def test_image_link_without_caption(self):
+    def test_image_link_without_caption(self) -> None:
         """Test image link without caption - this pattern may not be handled."""
         text = "[img=12345/]"
         result = clean_and_html(text)
         # This pattern may not be converted - verify it doesn't break
         assert "12345" in result
 
-    def test_pitch_increments_in_html(self):
+    def test_pitch_increments_in_html(self) -> None:
         """Test that pitch increments work in HTML context."""
         text = "L# start"
         result = clean_and_html(text)
@@ -267,9 +289,9 @@ class TestCleanAndHtml:
 class TestGetLocale:
     """Tests for get_locale function."""
 
-    def test_locale_found(self):
+    def test_locale_found(self) -> None:
         """Test finding an existing locale."""
-        route = {
+        route: dict[str, Any] = {
             "locales": [
                 {"lang": "fr", "title": "French Title"},
                 {"lang": "en", "title": "English Title"},
@@ -280,9 +302,9 @@ class TestGetLocale:
         assert result["lang"] == "fr"
         assert result["title"] == "French Title"
 
-    def test_locale_not_found(self):
+    def test_locale_not_found(self) -> None:
         """Test when locale is not found."""
-        route = {
+        route: dict[str, Any] = {
             "locales": [
                 {"lang": "fr", "title": "French Title"},
             ]
@@ -290,15 +312,15 @@ class TestGetLocale:
         result = get_locale(route, "de")
         assert result is None
 
-    def test_empty_locales(self):
+    def test_empty_locales(self) -> None:
         """Test with empty locales."""
-        route = {"locales": []}
+        route: dict[str, Any] = {"locales": []}
         result = get_locale(route, "fr")
         assert result is None
 
-    def test_default_language(self):
+    def test_default_language(self) -> None:
         """Test with default French language."""
-        route = {
+        route: dict[str, Any] = {
             "locales": [
                 {"lang": "fr", "title": "French Title"},
             ]
@@ -311,9 +333,9 @@ class TestGetLocale:
 class TestGetLocales:
     """Tests for get_locales function."""
 
-    def test_first_language_available(self):
+    def test_first_language_available(self) -> None:
         """Test getting first available language."""
-        route = {
+        route: dict[str, Any] = {
             "document_id": 123,
             "locales": [
                 {"lang": "fr", "title": "French Title"},
@@ -324,9 +346,9 @@ class TestGetLocales:
         assert result["lang"] == "fr"
         assert result["title"] == "French Title"
 
-    def test_fallback_to_second_language(self):
+    def test_fallback_to_second_language(self) -> None:
         """Test fallback to second language when first not available."""
-        route = {
+        route: dict[str, Any] = {
             "document_id": 123,
             "locales": [
                 {"lang": "de", "title": "German Title"},
@@ -337,9 +359,9 @@ class TestGetLocales:
         assert result["lang"] == "en"
         assert result["title"] == "English Title"
 
-    def test_no_available_language(self):
+    def test_no_available_language(self) -> None:
         """Test error when no language is available."""
-        route = {
+        route: dict[str, Any] = {
             "document_id": 123,
             "locales": [
                 {"lang": "de", "title": "German Title"},
@@ -353,14 +375,14 @@ class TestGetLocales:
 class TestParseC2cUrl:
     """Tests for parse_c2c_url function."""
 
-    def test_basic_route_url(self):
+    def test_basic_route_url(self) -> None:
         """Test parsing basic route URL."""
         url = "https://www.camptocamp.org/routes"
         doc_type, params = parse_c2c_url(url)
         assert doc_type == "routes"
         assert params == {"limit": 100}
 
-    def test_route_url_with_params(self):
+    def test_route_url_with_params(self) -> None:
         """Test parsing route URL with parameters."""
         url = "https://www.camptocamp.org/routes?act=rock_climbing"
         doc_type, params = parse_c2c_url(url)
@@ -368,26 +390,26 @@ class TestParseC2cUrl:
         assert params["act"] == "rock_climbing"
         assert params["limit"] == 100
 
-    def test_waypoint_url(self):
+    def test_waypoint_url(self) -> None:
         """Test parsing waypoint URL."""
         url = "https://www.camptocamp.org/waypoints"
         doc_type, params = parse_c2c_url(url)
         assert doc_type == "waypoints"
 
-    def test_outing_url(self):
+    def test_outing_url(self) -> None:
         """Test parsing outing URL."""
         url = "https://www.camptocamp.org/outings"
         doc_type, params = parse_c2c_url(url)
         assert doc_type == "outings"
 
-    def test_url_with_bbox(self):
+    def test_url_with_bbox(self) -> None:
         """Test URL with bounding box parameter."""
         url = "https://www.camptocamp.org/routes?bbox=616096,5333945,627309,5346461"
         doc_type, params = parse_c2c_url(url)
         assert doc_type == "routes"
         assert params["bbox"] == "616096,5333945,627309,5346461"
 
-    def test_url_with_multiple_params(self):
+    def test_url_with_multiple_params(self) -> None:
         """Test URL with multiple parameters."""
         url = "https://www.camptocamp.org/routes?act=rock_climbing&bbox=616096,5333945,627309,5346461"
         doc_type, params = parse_c2c_url(url)
@@ -395,7 +417,7 @@ class TestParseC2cUrl:
         assert params["act"] == "rock_climbing"
         assert params["bbox"] == "616096,5333945,627309,5346461"
 
-    def test_limit_is_overridden(self):
+    def test_limit_is_overridden(self) -> None:
         """Test that limit is always set to 100."""
         url = "https://www.camptocamp.org/routes?limit=10"
         doc_type, params = parse_c2c_url(url)
@@ -405,24 +427,24 @@ class TestParseC2cUrl:
 class TestGenerateFilename:
     """Tests for generate_filename function."""
 
-    def test_basic_filename(self):
+    def test_basic_filename(self) -> None:
         """Test generating basic filename."""
         doc_type = "routes"
-        params = {}
+        params: dict[str, Any] = {}
         result = generate_filename(doc_type, params)
         assert result == "routes.gpx"
 
-    def test_filename_with_single_param(self):
+    def test_filename_with_single_param(self) -> None:
         """Test filename with single parameter."""
         doc_type = "routes"
-        params = {"act": "rock_climbing"}
+        params: dict[str, Any] = {"act": "rock_climbing"}
         result = generate_filename(doc_type, params)
         assert result == "routes_act-rock_climbing.gpx"
 
-    def test_filename_with_multiple_params(self):
+    def test_filename_with_multiple_params(self) -> None:
         """Test filename with multiple parameters."""
         doc_type = "routes"
-        params = {"act": "rock_climbing", "bbox": "616096,5333945"}
+        params: dict[str, Any] = {"act": "rock_climbing", "bbox": "616096,5333945"}
         result = generate_filename(doc_type, params)
         assert "routes_" in result
         assert "act-rock_climbing" in result
@@ -430,25 +452,25 @@ class TestGenerateFilename:
         assert "bbox-616096-5333945" in result
         assert result.endswith(".gpx")
 
-    def test_filename_ignores_limit_offset(self):
+    def test_filename_ignores_limit_offset(self) -> None:
         """Test that limit and offset are ignored."""
         doc_type = "routes"
-        params = {"act": "climbing", "limit": 100, "offset": 0}
+        params: dict[str, Any] = {"act": "climbing", "limit": 100, "offset": 0}
         result = generate_filename(doc_type, params)
         assert "limit" not in result
         assert "offset" not in result
         assert "act-climbing" in result
 
-    def test_filename_with_comma_in_value(self):
+    def test_filename_with_comma_in_value(self) -> None:
         """Test that commas in values are replaced with dashes."""
         doc_type = "routes"
-        params = {"bbox": "a,b,c"}
+        params: dict[str, Any] = {"bbox": "a,b,c"}
         result = generate_filename(doc_type, params)
         assert "bbox-a-b-c" in result
 
-    def test_waypoint_filename(self):
+    def test_waypoint_filename(self) -> None:
         """Test generating waypoint filename."""
         doc_type = "waypoints"
-        params = {"type": "summit"}
+        params: dict[str, Any] = {"type": "summit"}
         result = generate_filename(doc_type, params)
         assert result == "waypoints_type-summit.gpx"
