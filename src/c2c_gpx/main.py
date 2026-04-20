@@ -28,9 +28,9 @@ transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
 # Base URL for the C2C API
 API_BASE_URL = "https://api.camptocamp.org"
-BASE_URL = "https://www.camptocamp.org/routes"
+BASE_URL = "https://www.camptocamp.org"
 
-delay = 0.5
+delay = 0.5  # duration (in seconds) between c2c api calls
 
 headers = {"User-Agent": "C2C-GPX-Exporter-User"}
 
@@ -186,7 +186,7 @@ def format_route_description(route_data: dict[str, Any]) -> str:
     remarks = desc.get("remarks")
     gear = desc.get("gear")
 
-    lines = [f'<p> <a href="{BASE_URL}/{route_id}">{route_id}</a>']
+    lines = [f'<p> <a href="{BASE_URL}/routes/{route_id}">{route_id}</a>']
 
     if title_prefix:
         lines.append(f"<b>Secteur</b> : {title_prefix}")
@@ -338,9 +338,21 @@ def parse_c2c_url(url: str) -> tuple[str, dict[str, Any]]:
 
     return doc_type, params
 
+def get_book_routes(book_url: dict[str, Any]) -> list[int]:
+    book_id = book_url.split("/")[1]
+    url = f"{API_BASE_URL}/books/{book_id}"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    data: dict[str, Any] = response.json()
+
+    print([d["document_id"] for d in data["associations"]["routes"]])
+
+    return [d["document_id"] for d in data["associations"]["routes"]]
+
 
 def get_document_ids(doc_type: str, params: dict[str, Any]) -> list[int]:
     """Get document IDs based on the document type and search parameters."""
+
     url = f"{API_BASE_URL}/{doc_type}"
     output: list[int] = []
     offset = 0
@@ -394,7 +406,12 @@ def main() -> None:
     doc_type, params = parse_c2c_url(args.url)
 
     print(f"Fetching {doc_type}...")
-    document_ids = get_document_ids(doc_type, params)
+
+    if "books/" in doc_type:
+        document_ids = get_book_routes(doc_type)
+        doc_type = "routes"
+    else:
+        document_ids = get_document_ids(doc_type, params)
     documents_data = get_documents_data(doc_type, document_ids)
     gpx = build_gpx(doc_type, documents_data)
 
