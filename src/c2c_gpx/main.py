@@ -17,9 +17,11 @@ import requests_cache
 import tqdm
 from pyproj import Transformer
 
-requests_cache.install_cache("c2c_cache", backend="sqlite", expire_after=timedelta(days=1))
+requests_cache.install_cache(
+    "c2c_cache", backend="sqlite", expire_after=timedelta(days=1)
+)
 
-__version__ = importlib.metadata.version('c2c_gpx')
+__version__ = importlib.metadata.version("c2c_gpx")
 
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
@@ -121,7 +123,11 @@ def clean_and_html(text: str) -> str:
             f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}'
             + (f"/{m.group(3)}/{m.group(4)}" if m.group(3) and m.group(4) else "")
             + '">'
-            + (m.group(5) if m.group(5) else (m.group(4) if m.group(4) else f"{m.group(1)} {m.group(2)}"))
+            + (
+                m.group(5)
+                if m.group(5)
+                else (m.group(4) if m.group(4) else f"{m.group(1)} {m.group(2)}")
+            )
             + "</a>"
         ),
         text,
@@ -160,7 +166,9 @@ def get_locale(route: dict[str, Any], lang: str = "fr") -> dict[str, Any] | None
     return None
 
 
-def get_locales(route: dict[str, Any], langs: tuple[str, ...] = ("fr", "en")) -> dict[str, Any]:
+def get_locales(
+    route: dict[str, Any], langs: tuple[str, ...] = ("fr", "en")
+) -> dict[str, Any]:
     for lang in langs:
         if loc := get_locale(route, lang):
             return loc
@@ -229,7 +237,9 @@ def get_default_description(doc_type: str, document_data: dict[str, Any]) -> str
     document_id = document_data["document_id"]
     desc = get_locales(document_data)
 
-    lines = [f'<p> <a href="{BASE_URL}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>']
+    lines = [
+        f'<p> <a href="{BASE_URL}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>'
+    ]
 
     for k, v in desc.items():
         if k in ("title", "lang", "version", "topic_id") or not v:
@@ -248,7 +258,9 @@ def get_document_description(doc_type: str, document_data: dict[str, Any]) -> st
     return get_default_description(doc_type, document_data)
 
 
-def create_document_waypoint(doc_type: str, document_data: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
+def create_document_waypoint(
+    doc_type: str, document_data: dict[str, Any]
+) -> gpxpy.gpx.GPXWaypoint:
     """Create a GPX waypoint from any document type."""
     loc = get_locales(document_data)
     title = loc["title"]
@@ -277,14 +289,18 @@ def get_document_data(doc_type: str, document_id: int) -> dict[str, Any]:
     return response_json
 
 
-def get_documents_data(doc_type: str, document_ids: list[int]) -> dict[int, dict[str, Any]]:
+def get_documents_data(
+    doc_type: str, document_ids: list[int]
+) -> dict[int, dict[str, Any]]:
     documents_data: dict[int, dict[str, Any]] = dict()
     for doc_id in tqdm.tqdm(document_ids, total=len(document_ids)):
         documents_data[doc_id] = get_document_data(doc_type, doc_id)
     return documents_data
 
 
-def build_gpx(doc_type: str, documents_data: dict[int, dict[str, Any]]) -> gpxpy.gpx.GPX:
+def build_gpx(
+    doc_type: str, documents_data: dict[int, dict[str, Any]]
+) -> gpxpy.gpx.GPX:
     gpx = gpxpy.gpx.GPX()
     for doc_data in documents_data.values():
         wp = create_document_waypoint(doc_type, doc_data)
@@ -313,7 +329,9 @@ def parse_c2c_url(url: str) -> tuple[str, dict[str, Any]]:
     doc_type = parsed.path.strip("/")
 
     # Pass all query parameters directly to the API (convert lists to single values)
-    params: dict[str, Any] = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
+    params: dict[str, Any] = {
+        k: v[0] if len(v) == 1 else v for k, v in query_params.items()
+    }
 
     # Set limit to the max value (reduces queries due to pagination)
     params["limit"] = 100
@@ -369,7 +387,7 @@ def main() -> None:
         help="Output GPX filename (default: auto-generated based on params)",
     )
 
-    parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument("--version", action="version", version=__version__)
 
     args = parser.parse_args()
 
@@ -380,7 +398,7 @@ def main() -> None:
     documents_data = get_documents_data(doc_type, document_ids)
     gpx = build_gpx(doc_type, documents_data)
 
-    gpx.description = "created with c2c-gpx v"+__version__
+    gpx.description = "created with c2c-gpx v" + __version__
     gpx.link = args.url.replace("&", "&amp;").replace("<", "&lt;")
     gpx.time = datetime.datetime.now()
 
