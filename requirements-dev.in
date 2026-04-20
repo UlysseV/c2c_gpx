@@ -3,6 +3,7 @@
 build==1.4.*
 mypy==1.19.*
 prek==0.3.*
+pytest==9.0.*
 ruff==0.15.*
 twine==6.2.*
 types-markdown
