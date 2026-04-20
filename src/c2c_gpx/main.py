@@ -7,8 +7,10 @@ from datetime import timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+import datetime
 import gpxpy
 import gpxpy.gpx
+import importlib.metadata
 import markdown
 import requests
 import requests_cache
@@ -16,6 +18,8 @@ import tqdm
 from pyproj import Transformer
 
 requests_cache.install_cache("c2c_cache", backend="sqlite", expire_after=timedelta(days=1))
+
+__version__ = importlib.metadata.version('c2c_gpx')
 
 # converts GPS coords from Web Mercator (3857) to WGS84 (4326)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
@@ -364,6 +368,9 @@ def main() -> None:
         default=None,
         help="Output GPX filename (default: auto-generated based on params)",
     )
+
+    parser.add_argument('--version', action='version', version=__version__)
+
     args = parser.parse_args()
 
     doc_type, params = parse_c2c_url(args.url)
@@ -372,6 +379,10 @@ def main() -> None:
     document_ids = get_document_ids(doc_type, params)
     documents_data = get_documents_data(doc_type, document_ids)
     gpx = build_gpx(doc_type, documents_data)
+
+    gpx.description = "created with c2c-gpx v"+__version__
+    gpx.link = args.url.replace("&", "&amp;").replace("<", "&lt;")
+    gpx.time = datetime.datetime.now()
 
     filename = args.output or generate_filename(doc_type, params)
     if args.output is not None and os.path.isdir(args.output):
