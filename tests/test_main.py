@@ -241,11 +241,19 @@ class TestCleanAndHtml:
         result = clean_and_html("")
         assert result == ""
 
+    # TODO: test exact equality instead of "content" in result
+
     def test_c2c_route_link(self) -> None:
         """Test C2C route link conversion."""
         text = "[[routes/1234]]"
         result = clean_and_html(text)
         assert "https://www.camptocamp.org/routes/1234" in result
+
+    def test_c2c_route_link_2(self) -> None:
+        """Test C2C route link conversion."""
+        text = "[[routes/1234/fr/route-name]]"
+        result = clean_and_html(text)
+        assert "https://www.camptocamp.org/routes/1234/fr/route-name" in result
 
     def test_c2c_route_link_with_name(self) -> None:
         """Test C2C route link with custom name."""
@@ -272,11 +280,16 @@ class TestCleanAndHtml:
         result = clean_and_html(text)
         assert "https://media.camptocamp.org/c2corg-active/uploads/images/12345.jpg" in result
 
+    def test_image_link_right_with_caption(self) -> None:
+        """Test image link with caption."""
+        text = "[img=12345 right]caption[/img]"
+        result = clean_and_html(text)
+        assert "https://media.camptocamp.org/c2corg-active/uploads/images/12345.jpg" in result
+
     def test_image_link_without_caption(self) -> None:
-        """Test image link without caption - this pattern may not be handled."""
+        """Test image link without caption."""
         text = "[img=12345/]"
         result = clean_and_html(text)
-        # This pattern may not be converted - verify it doesn't break
         assert "12345" in result
 
     def test_pitch_increments_in_html(self) -> None:

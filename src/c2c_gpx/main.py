@@ -112,10 +112,13 @@ def increment_pitches(text: str) -> str:
 def clean_and_html(text: str) -> str:
     # replace C2C links with HTML ones
     text = re.sub(
-        r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:\|(.*?))?\]\]",
+        r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:/(\w+)/([^|\]]+))?(?:\|(.*?))?\]\]",
         lambda m: (
-            f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}">'
-            + f'{m.group(3) if m.group(3) else m.group(1) + " " + m.group(2)}</a>'
+            f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}'
+            + (f"/{m.group(3)}/{m.group(4)}" if m.group(3) and m.group(4) else "")
+            + '">'
+            + (m.group(5) if m.group(5) else (m.group(4) if m.group(4) else f"{m.group(1)} {m.group(2)}"))
+            + "</a>"
         ),
         text,
     )
