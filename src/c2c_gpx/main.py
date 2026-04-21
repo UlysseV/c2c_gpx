@@ -116,6 +116,10 @@ def increment_pitches(text: str) -> str:
 
 
 def clean_and_html(text: str) -> str:
+
+
+
+
     # replace C2C links with HTML ones
     text = re.sub(
         r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:/(\w+)/([^|\]]+))?(?:\|(.*?))?\]\]",
@@ -132,6 +136,7 @@ def clean_and_html(text: str) -> str:
         ),
         text,
     )
+
 
     # replace image ref
     text = re.sub(
@@ -150,6 +155,9 @@ def clean_and_html(text: str) -> str:
         r'<a href="https://media.camptocamp.org/c2corg-active/uploads/images/\1.jpg">[📸]</a>',
         text,
     )
+
+    from . import c2c_markdown as mkd
+    return mkd.parse_code(text)
 
     text = text.replace("|", "<td>")
 
@@ -176,6 +184,7 @@ def get_locales(
 
 
 def format_route_description(route_data: dict[str, Any]) -> str:
+
     route_id = route_data["document_id"]
     desc = get_locales(route_data)
     # title = desc["title"]
