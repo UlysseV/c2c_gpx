@@ -24,6 +24,13 @@ Note: quotes around the url are important for the `&` to be passed down correctl
 
 The resulting file can be opened in any map app.
 
+
+### Exporting your stared routes
+
+You can add the url parameter `u=1234` to the routes (resp. outings) search url to limit the search to your favorite routes (resp. own outings).
+Replace `1234` with your user id.
+
+
 ## External ressources
 - https://gpx.studio/app to see your gpx file online
 - https://osmand.net/docs/technical/osmand-file-formats/osmand-gpx/
