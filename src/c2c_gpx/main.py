@@ -1,4 +1,6 @@
 import argparse
+import datetime
+import importlib.metadata
 import json
 import os
 import re
@@ -7,19 +9,15 @@ from datetime import timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-import datetime
 import gpxpy
 import gpxpy.gpx
-import importlib.metadata
 import markdown
 import requests
 import requests_cache
 import tqdm
 from pyproj import Transformer
 
-requests_cache.install_cache(
-    "c2c_cache", backend="sqlite", expire_after=timedelta(days=1)
-)
+requests_cache.install_cache("c2c_cache", backend="sqlite", expire_after=timedelta(days=1))
 
 __version__ = importlib.metadata.version("c2c_gpx")
 
@@ -116,10 +114,6 @@ def increment_pitches(text: str) -> str:
 
 
 def clean_and_html(text: str) -> str:
-
-
-
-
     # replace C2C links with HTML ones
     text = re.sub(
         r"\[\[(routes|waypoints|outings|articles|images)/(\d+)(?:/(\w+)/([^|\]]+))?(?:\|(.*?))?\]\]",
@@ -127,16 +121,11 @@ def clean_and_html(text: str) -> str:
             f'<a href="https://www.camptocamp.org/{m.group(1)}/{m.group(2)}'
             + (f"/{m.group(3)}/{m.group(4)}" if m.group(3) and m.group(4) else "")
             + '">'
-            + (
-                m.group(5)
-                if m.group(5)
-                else (m.group(4) if m.group(4) else f"{m.group(1)} {m.group(2)}")
-            )
+            + (m.group(5) if m.group(5) else (m.group(4) if m.group(4) else f"{m.group(1)} {m.group(2)}"))
             + "</a>"
         ),
         text,
     )
-
 
     # replace image ref
     text = re.sub(
@@ -157,6 +146,7 @@ def clean_and_html(text: str) -> str:
     )
 
     from . import c2c_markdown as mkd
+
     return mkd.parse_code(text)
 
     text = text.replace("|", "<td>")
@@ -174,9 +164,7 @@ def get_locale(route: dict[str, Any], lang: str = "fr") -> dict[str, Any] | None
     return None
 
 
-def get_locales(
-    route: dict[str, Any], langs: tuple[str, ...] = ("fr", "en")
-) -> dict[str, Any]:
+def get_locales(route: dict[str, Any], langs: tuple[str, ...] = ("fr", "en")) -> dict[str, Any]:
     for lang in langs:
         if loc := get_locale(route, lang):
             return loc
@@ -184,7 +172,6 @@ def get_locales(
 
 
 def format_route_description(route_data: dict[str, Any]) -> str:
-
     route_id = route_data["document_id"]
     desc = get_locales(route_data)
     # title = desc["title"]
@@ -246,9 +233,7 @@ def get_default_description(doc_type: str, document_data: dict[str, Any]) -> str
     document_id = document_data["document_id"]
     desc = get_locales(document_data)
 
-    lines = [
-        f'<p> <a href="{BASE_URL}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>'
-    ]
+    lines = [f'<p> <a href="{BASE_URL}/{doc_type}/{document_id}">{doc_type.strip("s")} #{document_id}</a></p>']
 
     for k, v in desc.items():
         if k in ("title", "lang", "version", "topic_id") or not v:
@@ -267,9 +252,7 @@ def get_document_description(doc_type: str, document_data: dict[str, Any]) -> st
     return get_default_description(doc_type, document_data)
 
 
-def create_document_waypoint(
-    doc_type: str, document_data: dict[str, Any]
-) -> gpxpy.gpx.GPXWaypoint:
+def create_document_waypoint(doc_type: str, document_data: dict[str, Any]) -> gpxpy.gpx.GPXWaypoint:
     """Create a GPX waypoint from any document type."""
     loc = get_locales(document_data)
     title = loc["title"]
@@ -298,18 +281,14 @@ def get_document_data(doc_type: str, document_id: int) -> dict[str, Any]:
     return response_json
 
 
-def get_documents_data(
-    doc_type: str, document_ids: list[int]
-) -> dict[int, dict[str, Any]]:
+def get_documents_data(doc_type: str, document_ids: list[int]) -> dict[int, dict[str, Any]]:
     documents_data: dict[int, dict[str, Any]] = dict()
     for doc_id in tqdm.tqdm(document_ids, total=len(document_ids)):
         documents_data[doc_id] = get_document_data(doc_type, doc_id)
     return documents_data
 
 
-def build_gpx(
-    doc_type: str, documents_data: dict[int, dict[str, Any]]
-) -> gpxpy.gpx.GPX:
+def build_gpx(doc_type: str, documents_data: dict[int, dict[str, Any]]) -> gpxpy.gpx.GPX:
     gpx = gpxpy.gpx.GPX()
     for doc_data in documents_data.values():
         wp = create_document_waypoint(doc_type, doc_data)
@@ -338,25 +317,34 @@ def parse_c2c_url(url: str) -> tuple[str, dict[str, Any]]:
     doc_type = parsed.path.strip("/")
 
     # Pass all query parameters directly to the API (convert lists to single values)
-    params: dict[str, Any] = {
-        k: v[0] if len(v) == 1 else v for k, v in query_params.items()
-    }
+    params: dict[str, Any] = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
 
     # Set limit to the max value (reduces queries due to pagination)
     params["limit"] = 100
 
     return doc_type, params
 
-def get_book_routes(book_url: dict[str, Any]) -> list[int]:
+
+def get_book_routes(book_url: str) -> list[int]:
     book_id = book_url.split("/")[1]
     url = f"{API_BASE_URL}/books/{book_id}"
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     data: dict[str, Any] = response.json()
 
-    print([d["document_id"] for d in data["associations"]["routes"]])
-
+    # print([d["document_id"] for d in data["associations"]["routes"]])
     return [d["document_id"] for d in data["associations"]["routes"]]
+
+
+def get_waypoint_routes(waypoint_url: str) -> list[int]:
+    waypoint_id = waypoint_url.split("/")[1]
+    url = f"{API_BASE_URL}/waypoints/{waypoint_id}"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    data: dict[str, Any] = response.json()
+
+    # print([d["document_id"] for d in data["associations"]["all_routes"]["documents"]])
+    return [d["document_id"] for d in data["associations"]["all_routes"]["documents"]]
 
 
 def get_document_ids(doc_type: str, params: dict[str, Any]) -> list[int]:
@@ -418,6 +406,9 @@ def main() -> None:
 
     if "books/" in doc_type:
         document_ids = get_book_routes(doc_type)
+        doc_type = "routes"
+    elif "waypoints/" in doc_type and "?" not in params:
+        document_ids = get_waypoint_routes(doc_type)
         doc_type = "routes"
     else:
         document_ids = get_document_ids(doc_type, params)
