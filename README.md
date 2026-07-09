@@ -27,8 +27,23 @@ The resulting file can be opened in any map app.
 
 ### Exporting your stared routes
 
-You can add the url parameter `u=1234` to the routes (resp. outings) search url to limit the search to your favorite routes (resp. own outings).
-Replace `1234` with your user id.
+You can add the url parameter `u=[use_id]` to the routes (resp. outings) search url to limit the search to your favorite routes (resp. own outings).
+For example, if you want to extract the starred ski touring routes of user `1234`, use the following:
+```bash
+c2c_gpx "https://www.camptocamp.org/routes?u=1234&act=skitouring"
+```
+
+### Exporting routes associated to a book or waypoint
+
+You can use the url of a book or a waypoint to exports the routes associated with it.
+For instance, here is how to extract the routes departing from the *refuge Temple Écrin*:
+```bash
+c2c_gpx "https://www.camptocamp.org/waypoints/104028/fr/refuge-temple-ecrins"
+```
+And here is the complete set of routes listed in the book *Oisan nouveau Oisan sauvage - livre Est*:
+```bash
+c2c_gpx "https://www.camptocamp.org/books/14637/fr/oisans-nouveau-oisans-sauvage-livre-est"
+```
 
 
 ## External ressources
